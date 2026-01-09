@@ -47,15 +47,8 @@ namespace MailOrderMod
 			{
 				Helper.Input.Suppress(e.Button);
 
-				// 1. Create the dialogue
-				string msg = "Pierre's is currently closed. You can pass an order slip under the door to have your items delivered tomorrow.";
-
-				// 2. Tell the game: "Show this message, and when it's closed, run this specific code."
-				Game1.drawObjectDialogue(msg);
-				Game1.afterDialogues = () =>
-				{
-					OpenMailOrderMenu(PIERRE_SHOP_ID);
-				};
+				Game1.drawObjectDialogue("Pierre's is currently closed. You can pass an order slip under the door to have your items delivered tomorrow.");
+				Game1.afterDialogues = () => { OpenMailOrderMenu(PIERRE_SHOP_ID); };
 			}
 		}
 
