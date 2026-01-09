@@ -18,25 +18,31 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Restore, Build, and Test all Projects
+    - name: Build Projects for Artifacts
       run: |
-        # 1. Find all project files
-        # We exclude bin/obj folders to avoid picking up temp files
+        # Find all project files
         PROJECTS=$(find . -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*")
 
         for proj in $PROJECTS; do
           echo "=========================================="
-          echo "Processing Project: $proj"
+          echo "Building: $proj"
           echo "=========================================="
           
-          # 2. Restore specifically for this project file
+          # 1. Restore
           dotnet restore "$proj"
           
-          # 3. Build specifically for this project file
-          # Adding -p:GamePath is a common fix for Stardew Mods in CI
-          dotnet build "$proj" -c Release --no-restore -p:GamePath="/tmp"
-          
-          # 4. Test specifically for this project file
-          # We check if there are tests; if not, this will just skip gracefully
-          dotnet test "$proj" --no-build --verbosity normal || echo "No tests found or tests failed for $proj"
+          # 2. Build DLL only
+          # We use -p:IgnoreModDeploy=true to prevent it from looking for the Game folder
+          dotnet build "$proj" -c Release --no-restore \
+            -p:IgnoreModDeploy=true \
+            -p:IgnoreModPack=true \
+            -p:GamePath="/tmp"
         done
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Mod-DLLs
+        path: |
+          **/bin/Release/**/*.dll
+          **/bin/Release/**/*.json
