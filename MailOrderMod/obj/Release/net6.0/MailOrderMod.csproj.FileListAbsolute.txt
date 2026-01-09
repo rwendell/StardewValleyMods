@@ -1,0 +1,8 @@
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\bin\Release\net6.0\MailOrderMod.deps.json
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\bin\Release\net6.0\MailOrderMod.dll
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\obj\Release\net6.0\MailOrderMod.csproj.AssemblyReference.cache
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\obj\Release\net6.0\MailOrderMod.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\obj\Release\net6.0\MailOrderMod.AssemblyInfoInputs.cache
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\obj\Release\net6.0\MailOrderMod.AssemblyInfo.cs
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\obj\Release\net6.0\MailOrderMod.csproj.CoreCompileInputs.cache
+C:\Users\Ryan\workspace\Stardew Valley Mods\MailOrderMod\obj\Release\net6.0\MailOrderMod.dll

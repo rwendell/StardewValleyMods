@@ -1,0 +1,16 @@
+{
+	"Name": "Mail Order Mod",
+	"Author": "spro",
+	"Version": "0.1.0",
+	"Description": "Allows ordering from Pierre's door after hours via mail slot.",
+	"UniqueID": "spro.MailOrderMod",
+	"EntryDll": "MailOrderMod.dll",
+	"MinimumApiVersion": "4.0.0",
+	"UpdateKeys": [],
+	"Dependencies": [
+		{
+			"UniqueID": "DIGUS.MailFrameworkMod",
+			"IsRequired": true
+		}
+	]
+}
