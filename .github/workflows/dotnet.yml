@@ -20,7 +20,10 @@ jobs:
 
     - name: Build Projects for Artifacts
       run: |
-        # Find all project files
+        # 1. Create a fake 'Stardew Valley' file to trick the build check
+        # The build package just checks if the file exists, not what's in it.
+        touch "Stardew Valley"
+
         PROJECTS=$(find . -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*")
 
         for proj in $PROJECTS; do
@@ -28,21 +31,16 @@ jobs:
           echo "Building: $proj"
           echo "=========================================="
           
-          # 1. Restore
           dotnet restore "$proj"
           
-          # 2. Build DLL only
-          # We use -p:IgnoreModDeploy=true to prevent it from looking for the Game folder
+          # 2. Point GamePath to the current folder where we created the fake file
           dotnet build "$proj" -c Release --no-restore \
-            -p:IgnoreModDeploy=true \
-            -p:IgnoreModPack=true \
-            -p:GamePath="/tmp"
+            -p:GamePath="$GITHUB_WORKSPACE" \
+            -p:IgnoreModDeploy=true
         done
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: Mod-DLLs
-        path: |
-          **/bin/Release/**/*.dll
-          **/bin/Release/**/*.json
+        path: "**/bin/Release/**"
