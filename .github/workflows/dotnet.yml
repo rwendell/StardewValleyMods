@@ -1,7 +1,4 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: .NET
+name: .NET Multi-Mod Build
 
 on:
   push:
@@ -11,18 +8,27 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build Release -c --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+
+    - name: Restore, Build, and Test all Mods
+      run: |
+        # Loop through every directory that contains a .csproj file
+        for dir in $(find . -maxdepth 2 -not -path '*/.*' -type d); do
+          if ls $dir/*.csproj >/dev/null 2>&1; then
+            echo "------------------------------------------"
+            echo "Processing project in: $dir"
+            echo "------------------------------------------"
+            
+            dotnet restore "$dir"
+            dotnet build "$dir" -c Release --no-restore
+            dotnet test "$dir" --no-build --verbosity normal
+          fi
+        done
