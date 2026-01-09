@@ -20,21 +20,29 @@ jobs:
 
     - name: Restore, Build, and Test all Mods
       run: |
-        # Find directories containing a .csproj file
-        for proj in $(find . -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*"); do
-          # Get the directory containing the csproj
+        # Find all .csproj files, excluding the obj and bin folders
+        PROJECTS=$(find . -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*")
+
+        for proj in $PROJECTS; do
+          # Get the folder containing the project file
           MOD_DIR=$(dirname "$proj")
           
           echo "=========================================="
-          echo "Processing: $MOD_DIR"
+          echo "Building Project: $proj"
+          echo "Directory: $MOD_DIR"
           echo "=========================================="
           
-          # Move into the directory so dotnet find the context correctly
+          # 1. Enter the mod folder
           cd "$GITHUB_WORKSPACE/$MOD_DIR"
           
+          # 2. Perform the lifecycle
           dotnet restore
           dotnet build -c Release --no-restore
           dotnet test --no-build --verbosity normal
+          
+          # 3. Return to the root to find the next mod
+          cd "$GITHUB_WORKSPACE"
+        doneal
           
           # Return to the root directory for the next iteration
           cd $GITHUB_WORKSPACE
