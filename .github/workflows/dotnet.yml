@@ -20,14 +20,10 @@ jobs:
 
     - name: Build Projects for Artifacts
       run: |
-        # 1. Create a dummy game directory and the specific markers 4.4.0 looks for
+        # 1. Create a dummy game directory with the 1.6+ marker
         mkdir -p /tmp/fake_game
-        
-        # Create the various names the SDK validates against (Linux & Windows styles)
-        touch "/tmp/fake_game/StardewValley"
-        touch "/tmp/fake_game/Stardew Valley"
         touch "/tmp/fake_game/StardewValley.dll"
-        
+
         # 2. Find and build each project
         PROJECTS=$(find . -name "*.csproj" -not -path "*/obj/*" -not -path "*/bin/*")
 
@@ -38,24 +34,17 @@ jobs:
           
           dotnet restore "$proj"
           
-          # We must use -p:GamePath AND -p:OS=Linux to ensure it handles paths correctly
-          # -p:IgnoreModDeploy stops it from trying to copy to the fake game folder
+          # We use GamePath to satisfy the check and IgnoreModDeploy to skip installation
           dotnet build "$proj" -c Release --no-restore \
             -p:GamePath="/tmp/fake_game" \
             -p:IgnoreModDeploy=true \
-            -p:OS=Linux
+            -p:EnableModZip=false
         done
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: Mod-DLLs
-        # This will grab the DLLs and the manifests for all built mods
         path: |
           **/bin/Release/**/*.dll
           **/bin/Release/**/manifest.json
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Mod-DLLs
-        path: "**/bin/Release/**"
