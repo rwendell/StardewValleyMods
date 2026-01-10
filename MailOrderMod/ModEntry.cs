@@ -15,6 +15,8 @@ namespace MailOrderMod
 	{
 		private IMailFrameworkModApi MfmApi;
 		private readonly List<Item> pendingOrderItems = [];
+		private List<Item> recentOrderItems = [];
+		private bool isMailOrderSession = false;
 
 		private const string EVENT_ID_CC_COMPLETE = "191393";
 		private const int OPENING_HOUR = 900;
@@ -29,12 +31,40 @@ namespace MailOrderMod
 		{
 			helper.Events.GameLoop.GameLaunched += (_, _) =>
 			{
-				MfmApi = Helper.ModRegistry.GetApi<IMailFrameworkModApi>("Digus.MailFrameworkMod");
+				MfmApi = helper.ModRegistry.GetApi<IMailFrameworkModApi>("Digus.MailFrameworkMod");
 			};
 			helper.Events.Input.ButtonPressed += OnButtonPressed;
+			helper.Events.GameLoop.DayEnding += OnDayEnding;
 			helper.Events.Display.MenuChanged += OnMenuChanged;
 		}
 
+		private void OnDayEnding(object sender, DayEndingEventArgs e)
+		{
+			if (pendingOrderItems.Count > 0)
+			{
+				string uniqueId = $"PierreOrder_{Game1.Date.TotalDays}_{Game1.timeOfDay}_{Guid.NewGuid().ToString()[..4]}";
+
+				string allNames = string.Join(", ", pendingOrderItems.Select(i => i.DisplayName));
+				Monitor.Log($"All Items: {allNames}", LogLevel.Debug);
+				MailOrder mailOrder = new()
+				{
+					Id = uniqueId,
+					Title = "After-Hours Delivery",
+					Text = "Thanks for your order! Here are your items. ^ - Pierre",
+					Items = [.. pendingOrderItems]
+				};
+
+				MfmApi.RegisterLetter(
+						mailOrder,
+						(_) => true,
+						null
+						);
+
+
+				pendingOrderItems.Clear();
+			}
+
+		}
 
 		private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
 		{
@@ -60,10 +90,12 @@ namespace MailOrderMod
 
 		private void OpenMailOrderMenu(string shopId)
 		{
-			pendingOrderItems.Clear();
+			isMailOrderSession = true;
 
 			ShopMenu mailMenu = new(shopId, ShopBuilder.GetShopStock(shopId))
 			{
+
+
 				onPurchase = (salable, who, countTaken, stock) =>
 				{
 					if (salable is not Item boughtItem) return false;
@@ -78,10 +110,16 @@ namespace MailOrderMod
 						Item itemCopy = boughtItem.getOne();
 						itemCopy.Stack = countTaken;
 						pendingOrderItems.Add(itemCopy);
+						recentOrderItems.Add(itemCopy);
 
 						Game1.playSound("purchase");
 
-						return true;
+						if (Game1.activeClickableMenu is ShopMenu currentShop)
+						{
+							boughtItem.Stack = 0;
+							currentShop.heldItem = null;
+						}
+						return false;
 					}
 
 					Game1.dayTimeMoneyBox.moneyShakeTimer = 1000;
@@ -93,32 +131,25 @@ namespace MailOrderMod
 
 		private void OnMenuChanged(object sender, MenuChangedEventArgs e)
 		{
-			if (e.OldMenu is ShopMenu && e.NewMenu == null)
+			if (e.OldMenu is ShopMenu && e.NewMenu == null && isMailOrderSession)
 			{
-				if (pendingOrderItems.Count > 0)
+				isMailOrderSession = false;
+
+				if (recentOrderItems.Count > 0)
 				{
-					string uniqueId = $"PierreOrder_{Game1.Date.TotalDays}_{Game1.timeOfDay}_{Guid.NewGuid().ToString()[..4]}";
+					var summary = recentOrderItems
+						.GroupBy(i => i.DisplayName)
+						.Select(g => $"{g.Key} ({g.Sum(i => i.Stack)})");
 
-					MailOrder mailOrder = new()
-					{
-						Id = uniqueId,
-						Title = "After-Hours Delivery",
-						Text = "Thanks for your order! Here are your items. ^ - Pierre",
-						Items = [.. pendingOrderItems]
-					};
+					string recentItemSummary = string.Join(", ", summary);
 
-					MfmApi.RegisterLetter(
-						mailOrder,
-						(letter) => true,
-						(letter) => { Monitor.Log("Mail opened!", LogLevel.Debug); }
-					);
+					Game1.addHUDMessage(new HUDMessage($"Ordered: {recentItemSummary}", HUDMessage.newQuest_type));
 
-					Game1.addHUDMessage(new HUDMessage($"{mailOrder.Items[0].Name}({mailOrder.Items[0].Stack}) added to delivery!", HUDMessage.newQuest_type));
-
-					pendingOrderItems.Clear();
+					recentOrderItems.Clear();
 				}
 			}
 		}
+
 		private static bool IsShopOpen()
 		{
 			bool isWednesday = Game1.shortDayNameFromDayOfSeason(Game1.dayOfMonth) == "Wed";
