@@ -86,9 +86,15 @@ namespace MailOrderMod
 		{
 			isMailOrderSession = true;
 
-			ShopMenu mailMenu = new(shopId, ShopBuilder.GetShopStock(shopId))
+			ShopMenu mailMenu = new(
+					shopId,
+					ShopBuilder
+					.GetShopStock(shopId)
+					.Where(item => !item.Key.IsRecipe)
+					.ToDictionary(pair => pair.Key, pair => pair.Value)
+					)
 			{
-				onPurchase = (ISalable salable, Farmer who, int countTaken, ItemStockInformation stockInfo) =>
+				onPurchase = (salable, who, countTaken, stockInfo) =>
 				{
 					if (salable is not Item boughtItem) return false;
 
