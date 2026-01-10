@@ -15,7 +15,7 @@ namespace MailOrderMod
 	{
 		private IMailFrameworkModApi MfmApi;
 		private readonly List<Item> pendingOrderItems = [];
-		private List<Item> recentOrderItems = [];
+		private readonly List<Item> recentOrderItems = [];
 		private bool isMailOrderSession = false;
 
 		private const string EVENT_ID_CC_COMPLETE = "191393";
@@ -42,28 +42,22 @@ namespace MailOrderMod
 		{
 			if (pendingOrderItems.Count > 0)
 			{
-				string uniqueId = $"PierreOrder_{Game1.Date.TotalDays}_{Game1.timeOfDay}_{Guid.NewGuid().ToString()[..4]}";
-
-				string allNames = string.Join(", ", pendingOrderItems.Select(i => i.DisplayName));
-				Monitor.Log($"All Items: {allNames}", LogLevel.Debug);
-				MailOrder mailOrder = new()
-				{
-					Id = uniqueId,
-					Title = "After-Hours Delivery",
-					Text = "Thanks for your order! Here are your items. ^ - Pierre",
-					Items = [.. pendingOrderItems]
-				};
+				string letterId = $"PierreMailOrder_{Game1.Date.TotalDays}";
 
 				MfmApi.RegisterLetter(
-						mailOrder,
-						(_) => true,
-						null
+						new MailOrder
+						{
+							Id = letterId,
+							Title = "After-Hours Delivery",
+							Text = "Thanks for your order! Here are your items. ^ - Pierre",
+							Items = [.. pendingOrderItems]
+						},
+						(letter) => !Game1.player.mailReceived.Contains(letter.Id),
+						(letter) => Game1.player.mailReceived.Add(letter.Id)
 						);
-
 
 				pendingOrderItems.Clear();
 			}
-
 		}
 
 		private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
@@ -94,38 +88,50 @@ namespace MailOrderMod
 
 			ShopMenu mailMenu = new(shopId, ShopBuilder.GetShopStock(shopId))
 			{
-
-
-				onPurchase = (salable, who, countTaken, stock) =>
+				onPurchase = (ISalable salable, Farmer who, int countTaken, ItemStockInformation stockInfo) =>
 				{
 					if (salable is not Item boughtItem) return false;
 
-					int price = boughtItem.salePrice();
-					int totalCost = price * countTaken;
+					int totalCost = boughtItem.salePrice() * countTaken;
 
-					if (who.Money >= totalCost)
+					if (who.Money < totalCost)
 					{
-						who.Money -= totalCost;
-
-						Item itemCopy = boughtItem.getOne();
-						itemCopy.Stack = countTaken;
-						pendingOrderItems.Add(itemCopy);
-						recentOrderItems.Add(itemCopy);
-
-						Game1.playSound("purchase");
-
-						if (Game1.activeClickableMenu is ShopMenu currentShop)
-						{
-							boughtItem.Stack = 0;
-							currentShop.heldItem = null;
-						}
-						return false;
+						Game1.dayTimeMoneyBox.moneyShakeTimer = 1000;
+						return true;
 					}
 
-					Game1.dayTimeMoneyBox.moneyShakeTimer = 1000;
+					who.Money -= totalCost;
+					Game1.playSound("purchase");
+
+					Item purchasedItem = boughtItem.getOne();
+					purchasedItem.Stack = countTaken;
+					pendingOrderItems.Add(purchasedItem);
+					recentOrderItems.Add(purchasedItem);
+
+
+					if (Game1.activeClickableMenu is ShopMenu currentShop)
+					{
+						currentShop.heldItem = null;
+					}
+
+					for (int i = who.Items.Count - 1; i >= 0 && countTaken > 0; i--)
+					{
+						var item = who.Items[i];
+
+						if (item?.QualifiedItemId != boughtItem.QualifiedItemId) continue;
+
+						int amountToRemove = Math.Min(countTaken, item.Stack);
+
+						item.Stack -= amountToRemove;
+						countTaken -= amountToRemove;
+
+						if (item.Stack <= 0) who.Items[i] = null;
+					}
+
 					return false;
 				}
 			};
+
 			Game1.activeClickableMenu = mailMenu;
 		}
 
@@ -137,7 +143,7 @@ namespace MailOrderMod
 
 				if (recentOrderItems.Count > 0)
 				{
-					var summary = recentOrderItems
+					IEnumerable<string> summary = recentOrderItems
 						.GroupBy(i => i.DisplayName)
 						.Select(g => $"{g.Key} ({g.Sum(i => i.Stack)})");
 
