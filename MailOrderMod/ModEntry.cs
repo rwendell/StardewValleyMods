@@ -8,23 +8,18 @@ using StardewValley.Menus;
 using StardewValley.Internal;
 using System;
 using MailFrameworkMod.Api;
+using MailOrderMod.Utils;
+using MailOrderMod.Constants;
 
 namespace MailOrderMod
 {
 	public class ModEntry : Mod
 	{
 		private IMailFrameworkModApi MfmApi;
-		private readonly List<Item> pendingOrderItems = [];
-		private readonly List<Item> recentOrderItems = [];
+		private readonly Dictionary<long, List<Item>> pendingOrderItems = [];
 		private bool isMailOrderSession = false;
 
-		private const string EVENT_ID_CC_COMPLETE = "191393";
-		private const int OPENING_HOUR = 900;
-		private const int CLOSING_HOUR = 1700;
 
-		private static readonly Vector2[] PIERRE_SHOP_TILES = [new(43, 56), new(44, 56)];
-		private static readonly string PIERRE_SHOP_LOC_NAME = "Town";
-		private static readonly string PIERRE_SHOP_ID = "SeedShop";
 
 
 		public override void Entry(IModHelper helper)
@@ -40,24 +35,10 @@ namespace MailOrderMod
 
 		private void OnDayEnding(object sender, DayEndingEventArgs e)
 		{
-			if (pendingOrderItems.Count > 0)
-			{
-				string letterId = $"PierreMailOrder_{Game1.Date.TotalDays}";
+			pendingOrderItems.Where(pendingItems => pendingItems.Value.Any()).ToList()
+				.ForEach(pendingItems => MailHelpers.RegisterOrderLetter(MfmApi, pendingItems.Key, pendingItems.Value));
 
-				MfmApi.RegisterLetter(
-						new MailOrder
-						{
-							Id = letterId,
-							Title = "After-Hours Delivery",
-							Text = "Thanks for your order! Here are your items. ^ - Pierre",
-							Items = [.. pendingOrderItems]
-						},
-						(letter) => !Game1.player.mailReceived.Contains(letter.Id),
-						(letter) => Game1.player.mailReceived.Add(letter.Id)
-						);
-
-				pendingOrderItems.Clear();
-			}
+			pendingOrderItems.Clear();
 		}
 
 		private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
@@ -67,21 +48,17 @@ namespace MailOrderMod
 			Vector2 tile = e.Cursor.GrabTile;
 			string loc = Game1.currentLocation.Name;
 
-			if (!IsShopOpen() && CanPlaceMailOrder(loc, tile))
+			if (!MailHelpers.IsShopOpen() && MailHelpers.CanPlaceMailOrder(loc, tile))
 			{
 				Helper.Input.Suppress(e.Button);
 
 				Game1.drawObjectDialogue("Pierre's is currently closed. You can pass an order slip under the door to have your items delivered tomorrow.");
-				Game1.afterDialogues = () => { OpenMailOrderMenu(PIERRE_SHOP_ID); };
+				Game1.afterDialogues = () => { OpenMailOrderMenu(MailConstants.PIERRE_SHOP_ID); };
 			}
 		}
 
-		private static bool CanPlaceMailOrder(string loc, Vector2 tile)
-		{
-			return PIERRE_SHOP_TILES.Contains(tile) && PIERRE_SHOP_LOC_NAME.Equals(loc);
-		}
 
-
+		private readonly List<Item> recentOrderItems = [];
 		private void OpenMailOrderMenu(string shopId)
 		{
 			isMailOrderSession = true;
@@ -96,6 +73,7 @@ namespace MailOrderMod
 			{
 				onPurchase = (salable, who, countTaken, stockInfo) =>
 				{
+					long playerId = who.UniqueMultiplayerID;
 					if (salable is not Item boughtItem) return false;
 
 					int totalCost = boughtItem.salePrice() * countTaken;
@@ -109,9 +87,10 @@ namespace MailOrderMod
 					who.Money -= totalCost;
 					Game1.playSound("purchase");
 
+
 					Item purchasedItem = boughtItem.getOne();
 					purchasedItem.Stack = countTaken;
-					pendingOrderItems.Add(purchasedItem);
+					MailHelpers.AddItemToPending(playerId, purchasedItem, pendingOrderItems);
 					recentOrderItems.Add(purchasedItem);
 
 
@@ -162,13 +141,5 @@ namespace MailOrderMod
 			}
 		}
 
-		private static bool IsShopOpen()
-		{
-			bool isWednesday = Game1.shortDayNameFromDayOfSeason(Game1.dayOfMonth) == "Wed";
-			bool ccFinished = Game1.MasterPlayer.eventsSeen.Contains(EVENT_ID_CC_COMPLETE);
-
-			if (isWednesday && !ccFinished) return false;
-			return Game1.timeOfDay >= OPENING_HOUR && Game1.timeOfDay < CLOSING_HOUR;
-		}
 	}
 }

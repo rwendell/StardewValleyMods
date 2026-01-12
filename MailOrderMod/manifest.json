@@ -1,7 +1,7 @@
 {
 	"Name": "Mail Order Mod",
 	"Author": "spro",
-	"Version": "0.1.0",
+	"Version": "0.1.1",
 	"Description": "Allows ordering from Pierre's door after hours via mail slot.",
 	"UniqueID": "spro.MailOrderMod",
 	"EntryDll": "MailOrderMod.dll",
