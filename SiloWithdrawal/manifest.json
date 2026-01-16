@@ -2,7 +2,7 @@
         "Name": "Silo Withdrawal",
         "Author": "spro",
         "Version": "0.1.0",
-        "Description": Take hay out of your silo",
+        "Description": "Take hay out of your silo",
         "UniqueID": "spro.SiloWithdrawal",
         "EntryDll": "SiloWithdrawal.dll",
         "MinimumApiVersion": "4.0.0",
